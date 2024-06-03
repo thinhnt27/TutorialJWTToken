@@ -1,4 +1,4 @@
-using GoogleAndJwtToken.Extensions;
+﻿using GoogleAndJwtToken.Extensions;
 using GoogleAndJwtToken.Middlewares;
 using Microsoft.OpenApi.Models;
 
@@ -17,18 +17,25 @@ namespace GoogleAndJwtToken
             builder.Services.AddControllers();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
+
+
             builder.Services.AddSwaggerGen(option =>
             {
-                option.SwaggerDoc("v1", new OpenApiInfo { Title = "Mock API", Version = "v1" });
+                // Cấu hình tài liệu Swagger với thông tin về API
+                option.SwaggerDoc("v1", new OpenApiInfo { Title = "API", Version = "v1" });
+
+                // Thêm định nghĩa bảo mật cho Swagger sử dụng JWT Bearer
                 option.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {
-                    In = ParameterLocation.Header,
-                    Description = "Please enter a valid token",
-                    Name = "Authorization",
-                    Type = SecuritySchemeType.Http,
-                    BearerFormat = "JWT",
-                    Scheme = "Bearer"
+                    In = ParameterLocation.Header, // Định nghĩa vị trí của thông tin bảo mật trong header
+                    Description = "Please enter a valid token", // Mô tả cho người dùng về việc nhập token
+                    Name = "Authorization", // Tên của header
+                    Type = SecuritySchemeType.Http, // Loại scheme là HTTP
+                    BearerFormat = "JWT", // Định dạng của token là JWT
+                    Scheme = "Bearer" // Scheme là Bearer
                 });
+
+                // Thiết lập yêu cầu bảo mật cho các endpoint trong Swagger
                 option.AddSecurityRequirement(new OpenApiSecurityRequirement
                 {
                     {
@@ -36,11 +43,11 @@ namespace GoogleAndJwtToken
                         {
                             Reference = new OpenApiReference
                             {
-                                Type=ReferenceType.SecurityScheme,
-                                Id="Bearer"
+                                Type=ReferenceType.SecurityScheme, // Loại tham chiếu là SecurityScheme
+                                Id="Bearer" // Id của SecurityScheme là Bearer
                             }
                         },
-                        new string[]{}
+                        new string[] {} // Không có yêu cầu scope cụ thể
                     } 
                 });
             });

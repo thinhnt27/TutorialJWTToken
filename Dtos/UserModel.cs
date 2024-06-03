@@ -14,6 +14,8 @@
 
         public string Image { get; set; } = null!;
 
+        public DateOnly? RegistrationDate { get; set; }
+
         public int RoleId { get; set; }
     }
 }

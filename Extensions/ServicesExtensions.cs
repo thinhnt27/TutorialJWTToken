@@ -10,6 +10,9 @@ using FluentValidation;
 using GoogleAndJwtToken.Validation;
 using GoogleAndJwtToken.Dtos;
 using GoogleAndJwtToken.Helpers;
+using GoogleAndJwtToken.Common.Payloads.Requests;
+using AutoMapper;
+using GoogleAndJwtToken.Mapper;
 
 namespace GoogleAndJwtToken.Extensions;
 
@@ -17,15 +20,22 @@ public static class ServicesExtensions
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        // Đăng ký middleware xử lý ngoại lệ
         services.AddScoped<ExceptionMiddleware>();
         services.AddControllers();
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen();
 
+        //Add Mapper
+        var mapperConfig = new MapperConfiguration(mc =>
+        {
+            mc.AddProfile(new ApplicationMapper());
+        });
 
-        ////Set time for PostgreSQL
-        //AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+        IMapper mapper = mapperConfig.CreateMapper();
+        services.AddSingleton(mapper);
 
+        // Lấy cấu hình JwtSettings từ file cấu hình và thiết lập
         var jwtSettings = configuration.GetSection(nameof(JwtSettings)).Get<JwtSettings>();
         services.Configure<JwtSettings>(val =>
         {
@@ -34,8 +44,10 @@ public static class ServicesExtensions
 
         services.AddAuthorization();
 
+        // Cấu hình xác thực JWT
         services.AddAuthentication(options =>
             {
+                // Thiết lập mặc định scheme để sử dụng JWT Bearer
                 options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
                 options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -44,11 +56,12 @@ public static class ServicesExtensions
             {
                 options.TokenValidationParameters = new TokenValidationParameters()
                 {
+                    // Khóa bí mật để ký token
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Key)),
-                    ValidateIssuer = false,
-                    ValidateAudience = false,
-                    ValidateLifetime = true,
-                    ValidateIssuerSigningKey = true
+                    ValidateIssuer = false, // Tắt xác thực Issuer
+                    ValidateAudience = false, // Tắt xác thực Audience
+                    ValidateLifetime = true, // Bật xác thực thời hạn của token
+                    ValidateIssuerSigningKey = true // Bật xác thực khóa ký của token
                 };
             });
         
@@ -66,7 +79,7 @@ public static class ServicesExtensions
 
 
         //Add Validation
-        services.AddScoped<IValidator<UserModel>, UserValidation>();
+        services.AddScoped<IValidator<SignupRequest>, SignupValidation>();
 
         return services;
     }
