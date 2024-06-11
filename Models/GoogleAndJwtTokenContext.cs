@@ -12,11 +12,8 @@ public partial class GoogleAndJwtTokenContext : DbContext
         : base(options)
     {
     }
-
     public virtual DbSet<Role> Roles { get; set; }
-
     public virtual DbSet<User> Users { get; set; }
-
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Role>(entity =>
@@ -29,7 +26,6 @@ public partial class GoogleAndJwtTokenContext : DbContext
                 .IsUnicode(false)
                 .HasColumnName("role_name");
         });
-
         modelBuilder.Entity<User>(entity =>
         {
             entity.HasKey(e => e.UserId).HasName("PK__User__CB9A1CFFEEA0ED91");
@@ -60,9 +56,7 @@ public partial class GoogleAndJwtTokenContext : DbContext
                 .HasForeignKey(d => d.RoleId)
                 .HasConstraintName("FK__User__role_id__398D8EEE");
         });
-
         OnModelCreatingPartial(modelBuilder);
     }
-
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
 }

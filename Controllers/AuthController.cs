@@ -1,14 +1,10 @@
 using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.Tokens;
 using GoogleAndJwtToken.Common.Payloads.Requests;
 using GoogleAndJwtToken.Common.Payloads.Responses;
-using GoogleAndJwtToken.Exceptions;
 using GoogleAndJwtToken.Service;
 using GoogleAndJwtToken.Dtos;
-using FluentValidation;
-using GoogleAndJwtToken.Validation;
 using GoogleAndJwtToken.Common;
 
 namespace GoogleAndJwtToken.Controllers;
@@ -18,43 +14,34 @@ namespace GoogleAndJwtToken.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IdentityService _identityService;
-    private readonly IValidator<SignupRequest> _signupValidator;
 
-    public AuthController(IdentityService identityService, IValidator<SignupRequest> signupValidator)
+    public AuthController(IdentityService identityService)
     {
         _identityService = identityService;
-        _signupValidator = signupValidator;
     }
 
-    
+
     [AllowAnonymous]
     [HttpPost]
     public async Task<IActionResult> Signup([FromBody] SignupRequest req)
     {
-        var validationResult = await _signupValidator.ValidateAsync(req);
-        if (validationResult.IsValid)
-        {
-            var handler = new JwtSecurityTokenHandler();
-            var res = await _identityService.Signup(req);
-            if (!res.Authenticated)
-            {
-                var resultFail = new SignupResponse
-                {
-                    AccessToken = "Sign up fail"
-                };
-                return BadRequest(ApiResult<SignupResponse>.Succeed(resultFail));
-            }
-            var result = new SignupResponse
-            {
-                AccessToken = handler.WriteToken(res.Token)
-            };
 
-            return Ok(ApiResult<SignupResponse>.Succeed(result));
-        }
-        else
+        var handler = new JwtSecurityTokenHandler();
+        var res = await _identityService.Signup(req);
+        if (!res.Authenticated)
         {
-            return BadRequest(validationResult.ToProblemDetails());
+
+            var resultFail = ApiResult<Dictionary<string, string[]>>.Fail(new Exception("Sign up fail"));
+            return BadRequest(resultFail);
         }
+        var result = new SignupResponse
+        {
+            AccessToken = handler.WriteToken(res.Token),
+            RefreshToken = handler.WriteToken(res.RefreshToken)
+        };
+
+        return Ok(ApiResult<SignupResponse>.Succeed(result));
+
     }
 
     [AllowAnonymous]
@@ -72,6 +59,7 @@ public class AuthController : ControllerBase
         var res = new LoginResponse
         {
             AccessToken = handler.WriteToken(loginResult.Token),
+            RefreshToken = handler.WriteToken(loginResult.RefreshToken)
         };
         return Ok(ApiResult<LoginResponse>.Succeed(res));
     }

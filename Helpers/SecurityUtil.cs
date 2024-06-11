@@ -29,13 +29,5 @@ public static class SecurityUtil
             
         return stringBuilder.ToString();
     }
-    public static string GenerateRandomPassword()
-    {
-        Random rand = new Random();
-        const int length = 9;
-        const string chars = "0123456789";
-        return new string(Enumerable.Repeat(chars, length)
-            .Select(s => s[rand.Next(s.Length)]).ToArray());
-    }
 
 }

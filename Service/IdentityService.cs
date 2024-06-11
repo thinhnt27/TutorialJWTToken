@@ -29,12 +29,10 @@ public class IdentityService
 
     }
 
-
-
     //Signup for User
     public async Task<LoginResult> Signup(SignupRequest req)
     {
-        var user = _context.Users.Where(c => c.UserName == req.UserName).FirstOrDefault();
+        var user = _context.Users.Where(c => c.UserName == req.UserName || c.Email == req.Email).FirstOrDefault();
         if (user is not null)
         {
             throw new BadRequestException("username or email already exists");
@@ -58,7 +56,8 @@ public class IdentityService
             return new LoginResult
             {
                 Authenticated = true,
-                Token = CreateJwtToken(createUser.Entity)
+                Token = CreateJwtToken(createUser.Entity),
+                RefreshToken = CreateJwtRefreshToken(createUser.Entity)
             };
         }
         else
@@ -66,7 +65,8 @@ public class IdentityService
             return new LoginResult
             {
                 Authenticated = false,
-                Token = null
+                Token = null,
+                RefreshToken = null
             };
         }
     }
@@ -84,6 +84,7 @@ public class IdentityService
             {
                 Authenticated = false,
                 Token = null,
+                RefreshToken = null
             };
         }
         var userRole = _context.Roles.Where(ur => ur.RoleId == user.RoleId).FirstOrDefault();
@@ -97,6 +98,7 @@ public class IdentityService
             {
                 Authenticated = false,
                 Token = null,
+                RefreshToken = null
             };
         }
 
@@ -104,35 +106,28 @@ public class IdentityService
         {
             Authenticated = true,
             Token = CreateJwtToken(user),
+            RefreshToken = CreateJwtRefreshToken(user)
         };
     }
 
     //Generate JWT Token for User
     private SecurityToken CreateJwtToken(User user)
     {
-        // Lấy thời gian hiện tại theo giờ quốc tế (UTC)
         var utcNow = DateTime.UtcNow;
 
-        // Lấy thông tin vai trò của người dùng từ cơ sở dữ liệu
         var userRole = _context.Roles.Where(u => u.RoleId == user.RoleId).FirstOrDefault();
 
-        // Nếu vai trò không tồn tại, ném ra ngoại lệ
         if (userRole is null) throw new BadRequestException("Role not found");
 
         // Tạo danh sách các claims chứa thông tin người dùng
         var authClaims = new List<Claim>
         {
-            // Claim chứa UserId của người dùng
             new(JwtRegisteredClaimNames.NameId, user.UserId.ToString()),
-/*            new(JwtRegisteredClaimNames.Sub, user.UserName),*/
 
-            // Claim chứa email của người dùng
             new(JwtRegisteredClaimNames.Email, user.Email),
 
-            // Claim chứa vai trò của người dùng
             new(ClaimTypes.Role, userRole.RoleName),
 
-            // Claim chứa một ID duy nhất cho token (JWT ID)
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
         };
 
@@ -141,17 +136,57 @@ public class IdentityService
 
         var tokenDescriptor = new SecurityTokenDescriptor()
         {
-            //// Gán các claims cho token
+            // Gán các claims cho token Payload
             Subject = new ClaimsIdentity(authClaims),
-            // Thiết lập thuật toán và khóa ký token
+            // Thiết lập thuật toán và khóa ký token Header
             SigningCredentials =
                 new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256),
-            // Thiết lập thời gian hết hạn cho token (1 giờ kể từ thời điểm hiện tại)
+            // Thiết lập thời gian hết hạn cho token
             Expires = utcNow.Add(TimeSpan.FromHours(1)),
         };
         // Tạo một handler để xử lý token
         var handler = new JwtSecurityTokenHandler();
-        // Tạo token dựa trên các mô tả đã thiết lập
+        var token = handler.CreateToken(tokenDescriptor);
+
+        return token;
+    }
+
+    //Generate JWT Token for User
+    private SecurityToken CreateJwtRefreshToken(User user)
+    {
+        var utcNow = DateTime.UtcNow;
+
+        var userRole = _context.Roles.Where(u => u.RoleId == user.RoleId).FirstOrDefault();
+
+        if (userRole is null) throw new BadRequestException("Role not found");
+
+        // Tạo danh sách các claims chứa thông tin người dùng
+        var authClaims = new List<Claim>
+        {
+            new(JwtRegisteredClaimNames.NameId, user.UserId.ToString()),
+
+            new(JwtRegisteredClaimNames.Email, user.Email),
+
+            new(ClaimTypes.Role, userRole.RoleName),
+
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+        };
+
+        // Chuyển khóa bí mật từ dạng chuỗi sang mảng byte
+        var key = Encoding.ASCII.GetBytes(_jwtSettings.Key);
+
+        var tokenDescriptor = new SecurityTokenDescriptor()
+        {
+            // Gán các claims cho token Payload
+            Subject = new ClaimsIdentity(authClaims),
+            // Thiết lập thuật toán và khóa ký token Header
+            SigningCredentials =
+                new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256),
+            // Thiết lập thời gian hết hạn cho token
+            Expires = utcNow.Add(TimeSpan.FromHours(240)),
+        };
+        // Tạo một handler để xử lý token
+        var handler = new JwtSecurityTokenHandler();
         var token = handler.CreateToken(tokenDescriptor);
 
         return token;
